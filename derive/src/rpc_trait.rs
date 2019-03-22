@@ -7,6 +7,7 @@ use syn::{
 };
 use crate::rpc_attr::{RpcMethodAttribute, PubSubMethodKind, AttributeKind};
 use crate::to_delegate::{RpcMethod, MethodRegistration, generate_trait_item_method};
+use crate::to_client::generate_client_module;
 
 const METADATA_TYPE: &str = "Metadata";
 
@@ -53,7 +54,7 @@ impl<'a> Fold for RpcTrait {
 	}
 }
 
-fn generate_rpc_item_trait(item_trait: &syn::ItemTrait) -> Result<(syn::ItemTrait, bool)> {
+fn generate_rpc_item_trait(item_trait: &syn::ItemTrait) -> Result<(syn::ItemTrait, proc_macro2::TokenStream, bool)> {
 	let methods_result: Result<Vec<_>> = item_trait.items
 		.iter()
 		.filter_map(|trait_item| {
@@ -131,13 +132,15 @@ fn generate_rpc_item_trait(item_trait: &syn::ItemTrait) -> Result<(syn::ItemTrai
 
 	let to_delegate_method =
 		generate_trait_item_method(&method_registrations, &item_trait, rpc_trait.has_metadata, has_pubsub_methods)?;
+
+  let rpc_client_module = generate_client_module(&method_registrations, &item_trait)?;
 	item_trait.items.push(syn::TraitItem::Method(to_delegate_method));
 
 	let trait_bounds: Punctuated<syn::TypeParamBound, Token![+]> =
 		parse_quote!(Sized + Send + Sync + 'static);
 	item_trait.supertraits.extend(trait_bounds);
 
-	Ok((item_trait, has_pubsub_methods))
+	Ok((item_trait, rpc_client_module, has_pubsub_methods))
 }
 
 fn rpc_wrapper_mod_name(rpc_trait: &syn::ItemTrait) -> syn::Ident {
@@ -152,7 +155,8 @@ pub fn rpc_impl(input: syn::Item) -> Result<proc_macro2::TokenStream> {
 		item => return Err(syn::Error::new_spanned(item, "The #[rpc] custom attribute only works with trait declarations")),
 	};
 
-	let (rpc_trait, has_pubsub_methods) = generate_rpc_item_trait(&rpc_trait)?;
+	let (rpc_server_trait, rpc_client_module, has_pubsub_methods) =
+        generate_rpc_item_trait(&rpc_trait)?;
 
 	let name = rpc_trait.ident.clone();
 	let mod_name_ident = rpc_wrapper_mod_name(&rpc_trait);
@@ -182,8 +186,13 @@ pub fn rpc_impl(input: syn::Item) -> Result<proc_macro2::TokenStream> {
 			use super::*;
 			use self::_jsonrpc_core::futures as _futures;
 
-			#rpc_trait
+      pub mod server {
+          use super::*;
+			    #rpc_server_trait
+      }
+
+      #rpc_client_module
 		}
-		pub use self::#mod_name_ident::#name;
+		pub use self::#mod_name_ident::server::#name;
 	))
 }
