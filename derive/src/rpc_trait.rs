@@ -82,7 +82,7 @@ fn generate_rpc_item_trait(item_trait: &syn::ItemTrait) -> Result<(syn::ItemTrai
 
 	for method in methods.iter() {
 		match &method.attr().kind {
-			AttributeKind::Rpc { has_metadata } =>
+			AttributeKind::Rpc { has_metadata, .. } =>
 				method_registrations.push(MethodRegistration::Standard {
 					method: method.clone(),
 					has_metadata: *has_metadata
