@@ -75,7 +75,7 @@ impl MethodRegistration {
 	}
 }
 
-const SUBCRIBER_TYPE_IDENT: &str = "Subscriber";
+const SUBSCRIBER_TYPE_IDENT: &str = "Subscriber";
 const METADATA_CLOSURE_ARG: &str = "meta";
 const SUBSCRIBER_CLOSURE_ARG: &str = "subscriber";
 
@@ -258,7 +258,7 @@ impl RpcMethod {
 		});
 		let subscriber_arg = param_types.get(1).and_then(|ty| {
 			if let syn::Type::Path(path) = ty {
-				if path.path.segments.iter().any(|s| s.ident == SUBCRIBER_TYPE_IDENT) {
+				if path.path.segments.iter().any(|s| s.ident == SUBSCRIBER_TYPE_IDENT) {
 					Some(ty.clone())
 				} else {
 					None
@@ -391,7 +391,8 @@ pub fn generate_where_clause_serialization_predicates(
 			if self.visiting_fn_arg && self.trait_generics.contains(&segment.ident) && !self.visiting_subscriber_arg {
 				self.deserialize_type_params.insert(segment.ident.clone());
 			}
-			self.visiting_subscriber_arg = self.visiting_fn_arg && segment.ident == SUBCRIBER_TYPE_IDENT;
+			self.visiting_subscriber_arg =
+				self.visiting_subscriber_arg || (self.visiting_fn_arg && segment.ident == SUBSCRIBER_TYPE_IDENT);
 			visit::visit_path_segment(self, segment);
 			self.visiting_subscriber_arg = false;
 		}
