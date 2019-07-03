@@ -11,17 +11,18 @@ use jsonrpc_core::Result;
 use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId, Session, PubSubHandler};
 
 #[derive(Serialize, Deserialize)]
-pub struct Wrapper<T> {
+pub struct Wrapper<T, U> {
 	inner: T,
+	inner2: U,
 }
 
 #[rpc]
-pub trait Rpc<T> {
+pub trait Rpc<T, U> {
 	type Metadata;
 
 	/// Hello subscription
 	#[pubsub(subscription = "hello", subscribe, name = "hello_subscribe", alias("hello_sub"))]
-	fn subscribe(&self, _: Self::Metadata, _: Subscriber<Wrapper<T>>);
+	fn subscribe(&self, _: Self::Metadata, _: Subscriber<Wrapper<T, U>>);
 
 	/// Unsubscribe from hello subscription.
 	#[pubsub(subscription = "hello", unsubscribe, name = "hello_unsubscribe")]
@@ -34,10 +35,10 @@ struct SerializeAndDeserialize {
 }
 
 struct RpcImpl;
-impl Rpc<SerializeAndDeserialize> for RpcImpl {
+impl Rpc<SerializeAndDeserialize, SerializeAndDeserialize> for RpcImpl {
 	type Metadata = Arc<Session>;
 
-	fn subscribe(&self, _: Self::Metadata, _: Subscriber<Wrapper<SerializeAndDeserialize>>) {
+	fn subscribe(&self, _: Self::Metadata, _: Subscriber<Wrapper<SerializeAndDeserialize, SerializeAndDeserialize>>) {
 		unimplemented!();
 	}
 
